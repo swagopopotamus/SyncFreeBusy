@@ -4,10 +4,10 @@
 This script syncs the **busy time blocks** from a personal Google Calendar to a work Google Calendar. It ensures that only the **free/busy status** is copied, without exposing any event details. The script runs on the work Google account, which must have access to view the free/busy status of the personal calendar.
 
 ### Features:
-✅ Copies **only busy time** from the personal calendar to the work calendar.
-✅ Syncs only events **starting within business hours** (Monday-Friday, 9 AM-5 PM).
-✅ Deletes only the events it created if the corresponding busy block is removed from the personal calendar.
-✅ Configurable number of days to check in advance.
+* Copies **only busy time** from the personal calendar to the work calendar.
+* Syncs only events **starting within business hours** (Monday-Friday, 9 AM-5 PM).
+* Deletes only the events it created if the corresponding busy block is removed from the personal calendar.
+* Configurable number of days to check in advance.
 
 ---
 
