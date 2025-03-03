@@ -2,6 +2,8 @@ function syncFreeBusyFromPersonalToWork() {
     var personalCalendarId = "your_personal_email@gmail.com"; // Replace with your personal email
     var workCalendarId = "your_work_calendar_id@yourcompany.com"; // Replace with your work calendar ID
     var DAYS_AHEAD = 30; // Set the number of days ahead you want to check for events (e.g., 30 days)
+    var WORK_START_HOUR = 9; // Configurable start time for work hours (9 AM)
+    var WORK_END_HOUR = 17; // Configurable end time for work hours (5 PM)
 
     var workCalendar = CalendarApp.getCalendarById(workCalendarId);
     if (!workCalendar) {
@@ -28,7 +30,7 @@ function syncFreeBusyFromPersonalToWork() {
 
     // Track existing busy start times in personal calendar
     var busyTimes = personalEvents
-        .filter(event => isWithinBusinessHours(event.getStartTime()))
+        .filter(event => isOverlappingWithWorkHours(event.getStartTime(), event.getEndTime(), WORK_START_HOUR, WORK_END_HOUR))
         .map(event => ({
             start: event.getStartTime().getTime(),
             end: event.getEndTime().getTime()
@@ -73,17 +75,18 @@ function syncFreeBusyFromPersonalToWork() {
     });
 }
 
-// Helper function to check if an event's **start time** is within business hours (Monday-Friday, 9 AM-5 PM)
-function isWithinBusinessHours(start) {
-    if (start.getHours() < 9 || start.getHours() >= 17) {
-        Logger.log("Skipping event outside business hours: " + start);
-        return false;
+// Helper function to check if an event overlaps with work hours (Monday-Friday, Configurable work hours)
+function isOverlappingWithWorkHours(eventStart, eventEnd, workStartHour, workEndHour) {
+    var eventStartHour = eventStart.getHours();
+    var eventEndHour = eventEnd.getHours();
+
+    // Check if the event overlaps with work hours
+    if (eventStartHour < workEndHour && eventEndHour >= workStartHour) {
+        Logger.log("Event overlaps with work hours: " + eventStart + " to " + eventEnd);
+        return true;
     }
 
-    if (start.getDay() === 0 || start.getDay() === 6) {
-        Logger.log("Skipping weekend event: " + start);
-        return false;
-    }
-
-    return true;
+    // If event is completely outside work hours
+    Logger.log("Event does not overlap with work hours: " + eventStart + " to " + eventEnd);
+    return false;
 }
