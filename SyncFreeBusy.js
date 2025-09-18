@@ -25,8 +25,19 @@ function syncFreeBusyFromPersonalToWork() {
     var personalEvents = personalCalendar.getEvents(startTime, endTime);
     Logger.log("Found " + personalEvents.length + " personal events in the next " + DAYS_AHEAD + " days.");
 
-    // Get all work calendar events created by the script
-    var workEvents = workCalendar.getEvents(startTime, endTime).filter(event => event.getDescription() === "Sync - Busy Time");
+    // Get all work calendar events created by the script (tracked by PropertiesService)
+    var scriptProperties = PropertiesService.getScriptProperties();
+    var SYNC_VERSION = "v1";
+    var workEvents = workCalendar.getEvents(startTime, endTime).filter(event => {
+        var prop = scriptProperties.getProperty(event.getId());
+        if (!prop) return false;
+        try {
+            var obj = JSON.parse(prop);
+            return obj.created === true && obj.version === SYNC_VERSION;
+        } catch (e) {
+            return false;
+        }
+    });
 
     // Track existing busy start times in personal calendar
     var busyTimes = personalEvents
@@ -37,15 +48,18 @@ function syncFreeBusyFromPersonalToWork() {
         }));
 
     // Add missing busy time blocks to work calendar
+    var syncTimestamp = new Date().toISOString();
     busyTimes.forEach(timeBlock => {
         var eventExists = workEvents.some(e => e.getStartTime().getTime() === timeBlock.start && e.getEndTime().getTime() === timeBlock.end);
 
         if (!eventExists) {
             try {
-                workCalendar.createEvent("Busy", new Date(timeBlock.start), new Date(timeBlock.end), {
+                var newEvent = workCalendar.createEvent("Busy", new Date(timeBlock.start), new Date(timeBlock.end), {
                     visibility: CalendarApp.Visibility.PRIVATE,
                     description: "Sync - Busy Time"
                 });
+                // Store a JSON string with version and timestamp
+                scriptProperties.setProperty(newEvent.getId(), JSON.stringify({created: true, version: SYNC_VERSION, timestamp: syncTimestamp}));
                 Logger.log("✅ Added busy time: " + new Date(timeBlock.start) + " to " + new Date(timeBlock.end));
             } catch (e) {
                 Logger.log("❌ Error creating event: " + e.message);
@@ -65,12 +79,41 @@ function syncFreeBusyFromPersonalToWork() {
         if (!stillBusy) {
             try {
                 workEvent.deleteEvent();
+                scriptProperties.deleteProperty(workEvent.getId());
                 Logger.log("❌ Removed busy time: " + workEvent.getStartTime() + " to " + workEvent.getEndTime());
             } catch (e) {
                 Logger.log("❌ Error deleting event: " + e.message);
             }
         } else {
             Logger.log("⏩ Keeping busy time: " + workEvent.getStartTime() + " to " + workEvent.getEndTime());
+        }
+    });
+    // Clean up orphaned event IDs in PropertiesService and audit for unexpected IDs
+    var allProps = scriptProperties.getKeys();
+    allProps.forEach(function(eventId) {
+        var prop = scriptProperties.getProperty(eventId);
+        var valid = false;
+        if (prop) {
+            try {
+                var obj = JSON.parse(prop);
+                valid = obj.created === true && obj.version === SYNC_VERSION;
+            } catch (e) {
+                valid = false;
+            }
+        }
+        if (!valid) {
+            Logger.log("⚠️ Unexpected property for eventId: " + eventId + " value: " + prop);
+        }
+        try {
+            var event = workCalendar.getEventById(eventId);
+            if (!event) {
+                scriptProperties.deleteProperty(eventId);
+                Logger.log("🧹 Cleaned up orphaned eventId: " + eventId);
+            }
+        } catch (e) {
+            // If getEventById throws, event is likely deleted
+            scriptProperties.deleteProperty(eventId);
+            Logger.log("🧹 Cleaned up orphaned eventId (exception): " + eventId);
         }
     });
 }

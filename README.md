@@ -12,6 +12,31 @@ This script syncs the **busy time blocks** from a personal Google Calendar to a 
 ---
 
 ## Setup Instructions
+### PropertiesService Tracking
+
+The script now uses Google Apps Script's PropertiesService to track which calendar events it creates. No manual setup is required—this is handled automatically.
+
+#### Viewing Tracked Events
+To view all tracked event IDs and their metadata, add this helper function to your script:
+
+```javascript
+function logAllScriptProperties() {
+   var props = PropertiesService.getScriptProperties().getProperties();
+   Logger.log(props);
+}
+```
+Run this function in the Apps Script editor and check the "Logs" panel.
+
+#### Clearing All Tracked Events
+If you want to reset the script's tracking (for troubleshooting or a fresh start), add and run:
+
+```javascript
+function clearAllScriptProperties() {
+   PropertiesService.getScriptProperties().deleteAllProperties();
+}
+```
+This will remove all event tracking from PropertiesService.
+
 
 ### 1. Share Free/Busy Access
 To allow your **work Google account** to see the **free/busy status** of your **personal Google Calendar**, follow these steps:
@@ -62,7 +87,8 @@ To have the script run automatically:
 ## Troubleshooting
 - If the script is **not copying events**, ensure your **work account** has access to your personal calendar's free/busy status.
 - If you see a **quota limit error**, reduce the script execution frequency.
-- If manually created work calendar events are being deleted, ensure the script **only deletes events it created** (they should have "Sync - Busy Time" in the description).
+- If manually created work calendar events are being deleted, ensure their event IDs are not tracked in PropertiesService. Only events created by the script are managed and deleted.
+- To audit or reset tracked events, use the helper functions above.
 
 ---
 
